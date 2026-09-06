@@ -1,0 +1,14 @@
+services:
+  api:
+    build: .
+    image: basket-recommender:local
+    ports:
+      - "${PORT:-8150}:8000"
+    # Optional: a file with SHOPIFY_STORE / SHOPIFY_CLIENT_ID / SHOPIFY_CLIENT_SECRET
+    # turns on the live in-stock filter. Absent, the service runs without it.
+    env_file:
+      - path: ./shopify.env
+        required: false
+    environment:
+      STOCK_REFRESH_MINUTES: "${STOCK_REFRESH_MINUTES:-15}"
+    restart: unless-stopped

@@ -8,8 +8,9 @@ actual order history, anonymized and committed to this repo, so the whole evalua
 runs from a clean clone with no credentials. Every number in this README is computed
 from that snapshot by `recsys report`.
 
-**Status: milestone 3 of 6 — content models and a hybrid.** Data pipeline, evaluation
-harness, five model families, and a validated blend; numbers in [Results](#results).
+**Status: milestone 4 of 6 — a service in a container.** Data pipeline, evaluation
+harness, five model families, a validated blend, and a FastAPI service that runs from
+`docker compose up` with live stock as a hard filter; numbers in [Results](#results).
 The protocol below was written before any model existed.
 
 ## The data
@@ -94,6 +95,43 @@ Refreshing the snapshot needs a Shopify custom app with `read_orders` and
 .venv/bin/recsys build --exclude-emails owner@example.com
 .venv/bin/recsys report --update-readme
 ```
+
+## Serve it
+
+```bash
+docker compose up            # http://127.0.0.1:8150  (PORT=… to change)
+curl "http://127.0.0.1:8150/search?q=batman&k=3"
+curl "http://127.0.0.1:8150/recommend?variant_ids=<id>,<id>&k=10"
+curl "http://127.0.0.1:8150/similar/<id>"
+curl  http://127.0.0.1:8150/health
+```
+
+The container carries the public snapshot and `results/serving_config.json` — the
+exact configuration validation chose and the test table reports — and fits it on
+the full snapshot at startup, in a few seconds. `/health` says what it was fitted
+on. No credentials are needed for any of this.
+
+| Endpoint | Returns |
+|---|---|
+| `GET /recommend?variant_ids=1,2&k=10&in_stock=true` | ranked items for the basket, each with a `why` block: the weighted contribution of each model in the blend |
+| `GET /similar/{variant_id}` | content-only neighbours — works for an item that has never sold |
+| `GET /search?q=` | title search, to find ids |
+| `GET /eval` | the test results as JSON |
+| `GET /health` | model, config source, fitted-on counts, stock cache status |
+
+**Stock is a hard filter, and it matters more than the metrics suggest.** Drop a
+file named `shopify.env` next to `compose.yaml` with `SHOPIFY_STORE`,
+`SHOPIFY_CLIENT_ID`, `SHOPIFY_CLIENT_SECRET` (an app with `read_inventory`) and the
+service pulls on-hand quantities at startup and every 15 minutes after. With it
+on, `in_stock=true` (the default) drops anything with zero on hand and every row
+reports `in_stock`. Without it, the service runs identically, `in_stock` is `null`,
+and `stock_filter_applied` is `false`, so a caller can tell the difference.
+
+Checked against the live store on 2026-09-05: 40% of the catalog was in stock, and
+for a Batman Pop, **all five of the unfiltered top recommendations were sold out**.
+The evaluation cannot see this, which is why it is a serving rule rather than a
+feature, and why the ranked list a customer sees is not the one the test table
+scores.
 
 ## The evaluation protocol, stated in advance
 
@@ -249,7 +287,8 @@ is neither flattered nor punished for emitting ties.
 2. **Evaluation harness with leakage tests; popularity and co-purchase baselines** — done.
 3. **Item-item association, content similarity, attribute co-occurrence, and a
    validated hybrid** — done.
-4. FastAPI service, Docker image, `docker compose up` from a clean clone.
+4. **FastAPI service, Docker image, `docker compose up` from a clean clone, live
+   stock as a hard filter** — done.
 5. A dashboard a store owner would leave open: pick a product or a basket, see what
    each model suggests, see the evaluation.
 6. Gate file and CI on the evaluation; publish.

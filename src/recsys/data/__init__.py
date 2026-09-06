@@ -4,10 +4,13 @@ Everything downstream of `pull` runs from `data/public/` with no credentials, wh
 what lets a reviewer reproduce the evaluation from a clean clone.
 """
 import json
+import os
 from pathlib import Path
 from typing import Iterable, Iterator
 
-ROOT = Path(__file__).resolve().parents[3]
+# The repo root when running from a checkout; RECSYS_ROOT when the package is installed
+# somewhere else (the container installs it into site-packages and keeps data under /app).
+ROOT = Path(os.getenv("RECSYS_ROOT") or Path(__file__).resolve().parents[3])
 RAW_DIR = ROOT / "data" / "raw"
 PUBLIC_DIR = ROOT / "data" / "public"
 

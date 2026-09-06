@@ -10,3 +10,18 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: pytest -q
       - run: recsys report
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose build
+      - run: docker compose up -d
+      - name: wait for /health
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:8150/health && exit 0
+            sleep 2
+          done
+          docker compose logs; exit 1
+      - run: curl -sf "http://127.0.0.1:8150/search?q=batman" | head -c 400; echo
+      - run: docker compose down

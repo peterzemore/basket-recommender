@@ -150,6 +150,15 @@ def cmd_evaluate(args) -> int:
         "chosen_on_validation": {fam: w[0].name for fam, w in winners.items()} | {"hybrid": best_h[2]},
         "summaries": dict(summaries), "lift_vs_baseline": lifts,
     }, indent=1) + "\n")
+    (out_dir / "serving_config.json").write_text(json.dumps({
+        "note": "The configuration chosen on validation and reported on test. `recsys serve` fits exactly this on the full snapshot.",
+        "popularity": _ctor_args(winners["popularity"][0]),
+        "attr": _ctor_args(comps["attr"]) | {"features": None},
+        "content": {},
+        "item": {"family": item_fam} | {k: v for k, v in _ctor_args(comps["item"]).items()},
+        "weights": {"attr": wa, "content": wc, "item": wi},
+        "label": best_h[2],
+    }, indent=1) + "\n")
     (out_dir / "test_queries.jsonl").write_text("".join(
         json.dumps({"model": n, **row}) + "\n" for n, r in results.items() for row in to_rows(r)))
     print("## Validation sweep\n" + sweep_md + "\n\n## Test\n" + test_md)
@@ -201,6 +210,11 @@ def build_parser() -> argparse.ArgumentParser:
     ev.add_argument("--seed", type=int, default=0)
     ev.add_argument("--update-readme", action="store_true")
     ev.set_defaults(func=cmd_evaluate)
+
+    sv = sub.add_parser("serve", help="run the API (fits the validated configuration on the full snapshot at startup)")
+    sv.add_argument("--host", default="127.0.0.1")
+    sv.add_argument("--port", type=int, default=8000)
+    sv.set_defaults(func=lambda a: __import__("uvicorn").run("recsys.serve:app", host=a.host, port=a.port) or 0)
     return p
 
 

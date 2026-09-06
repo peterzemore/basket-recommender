@@ -1,0 +1,22 @@
+{
+ "note": "The configuration chosen on validation and reported on test. `recsys serve` fits exactly this on the full snapshot.",
+ "popularity": {
+  "half_life_days": 30
+ },
+ "attr": {
+  "features": null,
+  "min_count": 5
+ },
+ "content": {},
+ "item": {
+  "family": "itemitem",
+  "similarity": "cosine",
+  "shrink": 5.0
+ },
+ "weights": {
+  "attr": 1.0,
+  "content": 1.0,
+  "item": 0.5
+ },
+ "label": "hybrid(attr=1, content=1, item=0.5)"
+}

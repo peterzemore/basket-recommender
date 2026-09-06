@@ -1,0 +1,12 @@
+.git
+.venv
+.pytest_cache
+__pycache__
+*.egg-info
+data/raw
+results/test_queries.jsonl
+results/val_sweep.md
+results/test.md
+tests
+shopify.env
+*.env

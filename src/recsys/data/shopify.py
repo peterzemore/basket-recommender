@@ -159,3 +159,26 @@ def fetch_products(api: ShopifyAdmin) -> list[dict]:
         if not page["pageInfo"]["hasNextPage"]:
             return out
         cursor = page["pageInfo"]["endCursor"]
+
+
+INVENTORY_QUERY = """
+query($cursor: String) {
+  productVariants(first: 250, after: $cursor) {
+    pageInfo { hasNextPage endCursor }
+    edges { node { id inventoryQuantity } }
+  }
+}
+"""
+
+
+def fetch_inventory(api: ShopifyAdmin) -> dict[int, int]:
+    """Current on-hand quantity per variant id. Needs read_inventory (or read_products)."""
+    out, cursor = {}, None
+    while True:
+        page = api.graphql(INVENTORY_QUERY, {"cursor": cursor})["productVariants"]
+        for edge in page["edges"]:
+            n = edge["node"]
+            out[int(n["id"].rsplit("/", 1)[-1])] = int(n.get("inventoryQuantity") or 0)
+        if not page["pageInfo"]["hasNextPage"]:
+            return out
+        cursor = page["pageInfo"]["endCursor"]

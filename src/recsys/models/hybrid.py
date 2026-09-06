@@ -25,11 +25,17 @@ class Hybrid(Model):
         self._pop = pop / (pop.max() or 1.0) * 1e-6
         return self
 
-    def scores(self, context: tuple[int, ...], on_date: str) -> np.ndarray:
-        total = np.zeros_like(self._pop)
+    def component_scores(self, context: tuple[int, ...], on_date: str) -> dict[str, np.ndarray]:
+        """Each component's weighted, max-scaled contribution - what /recommend reports as 'why'."""
+        out = {}
         for m, w in self.components:
             s = m.scores(context, on_date)
             mx = s.max()
-            if mx > 0:
-                total += w * (s / mx)
+            out[m.name] = w * (s / mx) if mx > 0 else np.zeros_like(s)
+        return out
+
+    def scores(self, context: tuple[int, ...], on_date: str) -> np.ndarray:
+        total = np.zeros_like(self._pop)
+        for s in self.component_scores(context, on_date).values():
+            total += s
         return total + self._pop
