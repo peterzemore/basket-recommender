@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Suggest next</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100,400;100,500;100,600&family=Archivo+Black&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#ffffff; --shelf:#eef0f3; --ink:#141416; --ink-2:#4c4e55; --rule:#d9dce1;
+  --crown:#ffc42d; --stock:#1e7f4f; --sold:#b8b4ae;
+  --font:"Archivo",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --display:"Archivo Black","Archivo",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html{font-size:16px}
+body{margin:0;background:var(--shelf);color:var(--ink);font-family:var(--font);font-feature-settings:"tnum";line-height:1.4}
+a{color:inherit}
+button,input{font:inherit}
+.top{display:flex;align-items:baseline;justify-content:space-between;gap:1rem;padding:1.25rem 1.5rem .75rem;flex-wrap:wrap}
+.top h1{font-family:var(--display);font-size:1.5rem;margin:0;letter-spacing:-.01em}
+.top form{display:flex;gap:1rem;align-items:center;color:var(--ink-2);font-size:.95rem}
+.top label{display:flex;gap:.4rem;align-items:center;cursor:pointer}
+.pip{display:inline-block;width:.6rem;height:.6rem;border-radius:50%;background:var(--stock);vertical-align:baseline;margin-right:.35rem}
+.pip.off{background:var(--sold)}
+.grid{display:grid;grid-template-columns:minmax(260px,320px) 1fr;gap:1.5rem;padding:0 1.5rem 1.5rem}
+@media (max-width:820px){.grid{grid-template-columns:1fr}}
+.rail h2,.main h2,.wide h2{font-size:1rem;font-weight:600;margin:0 0 .6rem}
+.find{position:relative}
+.find input{width:100%;padding:.7rem .8rem;border:1.5px solid var(--ink);background:var(--paper);border-radius:0}
+.find input:focus{outline:3px solid var(--crown);outline-offset:1px}
+.results{list-style:none;margin:.4rem 0 0;padding:0;background:var(--paper);border:1px solid var(--rule)}
+.results:empty{display:none}
+.results li{display:flex;justify-content:space-between;gap:.75rem;padding:.55rem .8rem;border-top:1px solid var(--rule)}
+.results li:first-child{border-top:0}
+.results a{text-decoration:none;font-weight:500}
+.results .n{color:var(--ink-2);white-space:nowrap}
+.basket{margin-top:1.25rem}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:.6rem}
+.tile{background:var(--paper);border:1.5px solid var(--ink);padding:.5rem .6rem .6rem;position:relative;min-height:6.5rem;display:flex;flex-direction:column;justify-content:flex-end}
+.tile .num{font-family:var(--display);font-size:2.1rem;line-height:1;color:var(--ink);position:absolute;top:.35rem;left:.5rem}
+.tile .num::before{content:"#";font-size:1.1rem;vertical-align:top;margin-right:.05em}
+.tile .corner{position:absolute;top:0;right:0;width:1.3rem;height:1.3rem;background:var(--crown)}
+.tile .t{font-size:.8rem;line-height:1.25;margin-top:2.4rem}
+.tile.nonum .t{margin-top:1.2rem;font-weight:500}
+.tile .rm{position:absolute;bottom:.4rem;right:.5rem;font-size:.8rem;color:var(--ink-2);text-decoration:none}
+.tile .rm:hover,.tile .rm:focus{color:var(--ink);text-decoration:underline}
+.empty{background:var(--paper);border:1px dashed var(--rule);padding:1.2rem;color:var(--ink-2);max-width:34rem}
+.sug{list-style:none;margin:0;padding:0;background:var(--paper);border:1.5px solid var(--ink)}
+.sug li{display:grid;grid-template-columns:2rem 3.4rem 1fr auto;gap:.9rem;align-items:center;padding:.7rem .9rem;border-top:1px solid var(--rule)}
+.sug li:first-child{border-top:0}
+.sug .rank{font-family:var(--display);font-size:1.25rem;color:var(--ink-2)}
+.sug img{width:3.4rem;height:3.4rem;object-fit:contain;background:var(--shelf)}
+.sug .noimg{width:3.4rem;height:3.4rem;background:var(--shelf)}
+.sug .title{font-weight:500}
+.sug .meta{color:var(--ink-2);font-size:.9rem;margin-top:.15rem}
+.sug .sold{color:var(--sold)}
+.sug .sold .title{text-decoration:line-through}
+.why{display:flex;flex-direction:column;align-items:flex-end;gap:.25rem;min-width:11rem}
+.bar{display:flex;height:.5rem;width:11rem;background:var(--shelf)}
+.bar i{display:block;height:100%}
+.bar .a{background:var(--ink)}.bar .c{background:#9a9da6}.bar .i{background:var(--crown)}
+.why small{color:var(--ink-2);font-size:.75rem;white-space:nowrap}
+.wide{padding:0 1.5rem 1.5rem}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.75rem}
+.col{background:var(--paper);border:1px solid var(--rule);padding:.7rem .8rem}
+.col h3{font-size:.9rem;font-weight:600;margin:0 0 .4rem}
+.col ol{margin:0;padding-left:1.2rem;font-size:.85rem}
+.col li{margin:.2rem 0}
+.col .off{color:var(--sold)}
+.col p{margin:.3rem 0 0;color:var(--ink-2);font-size:.8rem}
+.legend{display:flex;gap:1.2rem;color:var(--ink-2);font-size:.8rem;margin:.5rem 0 0;flex-wrap:wrap}
+.legend i{display:inline-block;width:.8rem;height:.5rem;margin-right:.35rem;vertical-align:middle}
+table{border-collapse:collapse;background:var(--paper);border:1px solid var(--rule);font-size:.9rem;width:100%;max-width:56rem}
+th,td{text-align:left;padding:.5rem .7rem;border-top:1px solid var(--rule)}
+th{font-weight:600;border-top:0}
+td.num,th.num{text-align:right}
+tr.served td{background:#fff7dc}
+tr.base td{color:var(--ink-2)}
+.note{color:var(--ink-2);font-size:.85rem;max-width:56rem;margin:.5rem 0 0}
+.stockline{color:var(--ink-2);font-size:.9rem}
+@media (prefers-reduced-motion:no-preference){.tile,.sug li{transition:none}}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>Suggest next</h1>
+  <form method="get" action="/">
+    <input type="hidden" name="ids" value="{{ ids }}">
+    <span class="stockline">
+      {% if stock.enabled and stock.variants_known %}<span class="pip"></span>Stock synced {{ stock.age }}
+      {% elif stock.enabled %}<span class="pip off"></span>Stock feed on, nothing loaded yet{% if stock.error %} ({{ stock.error }}){% endif %}
+      {% else %}<span class="pip off"></span>No stock feed, showing everything{% endif %}
+    </span>
+    <label><input type="checkbox" name="in_stock" value="1" {% if in_stock %}checked{% endif %} onchange="this.form.submit()" {% if not stock.variants_known %}disabled{% endif %}> Only what's in stock</label>
+  </form>
+</header>
+
+<div class="grid">
+  <aside class="rail">
+    <h2>Find a Pop</h2>
+    <form class="find" method="get" action="/">
+      <input type="hidden" name="ids" value="{{ ids }}"><input type="hidden" name="in_stock" value="{{ in_stock }}">
+      <input type="search" name="q" value="{{ q }}" placeholder="Name or Pop number" autocomplete="off" aria-label="Find a Pop"
+             oninput="liveSearch(this.value)">
+    </form>
+    <ul class="results" id="results">{% include "_results.html" %}</ul>
+
+    <section class="basket">
+      <h2>In the basket</h2>
+      {% if basket %}
+      <div class="tiles">
+        {% for b in basket %}
+        <div class="tile{% if not b.pop_number %} nonum{% endif %}">
+          <span class="corner"></span>
+          {% if b.pop_number %}<span class="num">{{ b.pop_number }}</span>{% endif %}
+          <span class="t">{{ b.title }}</span>
+          <a class="rm" href="/?ids={{ basket|map(attribute='variant_id')|reject('equalto', b.variant_id)|join(',') }}&in_stock={{ in_stock }}">remove</a>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="empty">Add what the customer is holding. Search by name or Pop number, then pick from the list.</p>
+      {% endif %}
+    </section>
+  </aside>
+
+  <main class="main">
+    <h2>For this basket</h2>
+    {% if suggest %}
+      {% if suggest.recommendations %}
+      <ol class="sug">
+        {% for r in suggest.recommendations %}
+        <li class="{% if r.in_stock is sameas false %}sold{% endif %}">
+          <span class="rank">{{ loop.index }}</span>
+          {% if r.image_url %}<img src="{{ r.image_url }}" alt="" loading="lazy">{% else %}<span class="noimg"></span>{% endif %}
+          <div>
+            <div class="title">{{ r.title }}</div>
+            <div class="meta">${{ "%.2f"|format(r.price or 0) }}
+              {% if r.in_stock is sameas true %} · <span class="pip"></span>in stock{% elif r.in_stock is sameas false %} · sold out{% endif %}
+              {% if r.sold_in == 0 %} · never sold here yet{% elif r.sold_in == 1 %} · sold once{% else %} · sold {{ r.sold_in }} times{% endif %}
+            </div>
+          </div>
+          <div class="why" title="What the suggestion rests on">
+            {% set w = r.why_rows %}{% set tot = (w.get('attr',0) + w.get('content',0) + w.get('item',0)) or 1 %}
+            <span class="bar">
+              <i class="a" style="width:{{ (100*w.get('attr',0)/tot)|round(1) }}%"></i><i class="c" style="width:{{ (100*w.get('content',0)/tot)|round(1) }}%"></i><i class="i" style="width:{{ (100*w.get('item',0)/tot)|round(1) }}%"></i>
+            </span>
+            <small>
+              {%- set parts = [] -%}
+              {%- if w.get('item',0) > 0 %}{% set _ = parts.append('bought together') %}{% endif -%}
+              {%- if w.get('content',0) > 0 %}{% set _ = parts.append('looks alike') %}{% endif -%}
+              {%- if w.get('attr',0) > 0 %}{% set _ = parts.append('goes with this kind') %}{% endif -%}
+              {{ parts|join(', ') if parts else 'a guess' }}
+            </small>
+          </div>
+        </li>
+        {% endfor %}
+      </ol>
+      <p class="legend"><span><i style="background:var(--crown)"></i>bought together</span><span><i style="background:#9a9da6"></i>looks alike</span><span><i style="background:var(--ink)"></i>goes with this kind of thing</span></p>
+      {% else %}
+      <p class="empty">Nothing to suggest that's in stock. Untick "Only what's in stock" to see what the model would say anyway.</p>
+      {% endif %}
+    {% else %}
+      <p class="empty">Suggestions appear here once something is in the basket.</p>
+    {% endif %}
+  </main>
+</div>
+
+{% if compare %}
+<section class="wide">
+  <h2>The same basket, model by model</h2>
+  <div class="cols">
+    {% for label, rows in compare.items() %}
+    <div class="col">
+      <h3>{{ label }}</h3>
+      {% if rows %}
+      <ol>{% for r in rows %}<li class="{% if r.in_stock is sameas false %}off{% endif %}">{{ r.title }}</li>{% endfor %}</ol>
+      {% else %}<p>Nothing this model can rank for this basket.</p>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  <p class="note">"Selling now" ignores the basket. "Bought together" needs the items to have sold before. "Looks alike" and "goes with this kind of thing" work from tags, rarity words and price, so they can suggest a Pop that has never sold. "Combined" is what the list above uses.</p>
+</section>
+{% endif %}
+
+{% if eval %}
+<section class="wide">
+  <h2>How it scores on held-out baskets</h2>
+  <table>
+    <tr><th>Model</th><th class="num">Hit@10</th><th class="num">95% interval</th><th class="num">Items that had sold before</th><th class="num">Items that never had</th></tr>
+    {% for e in eval %}
+    <tr class="{% if e.served %}served{% elif e.baseline %}base{% endif %}">
+      <td>{{ e.name }}{% if e.served %} (served){% elif e.baseline %} (the store's old report){% endif %}</td>
+      <td class="num">{{ "%.1f"|format(100*e.hit10.mean) }}%</td>
+      <td class="num">{{ "%.1f"|format(100*e.hit10.lo) }}–{{ "%.1f"|format(100*e.hit10.hi) }}%</td>
+      <td class="num">{% if e.warm is not none %}{{ "%.1f"|format(100*e.warm) }}%{% else %}–{% endif %}</td>
+      <td class="num">{% if e.cold is not none %}{{ "%.1f"|format(100*e.cold) }}%{% else %}–{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  <p class="note">{{ eval[0].n }} hidden items across the test months, {{ "%.0f"|format(100*eval[0].cold_share) }}% of them never sold before the model was fitted. Hit@10 is how often the hidden item lands in the top ten. Full protocol and intervals are in the README.</p>
+</section>
+{% endif %}
+
+<script>
+let t;
+function liveSearch(q){
+  clearTimeout(t);
+  t=setTimeout(async()=>{
+    const ids=encodeURIComponent({{ ids|tojson }}), s={{ in_stock|tojson }};
+    const r=await fetch(`/ui/search?q=${encodeURIComponent(q)}&ids=${ids}&in_stock=${s}`);
+    document.getElementById('results').innerHTML=await r.text();
+  },150);
+}
+</script>
+</body>
+</html>

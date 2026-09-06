@@ -8,10 +8,13 @@ actual order history, anonymized and committed to this repo, so the whole evalua
 runs from a clean clone with no credentials. Every number in this README is computed
 from that snapshot by `recsys report`.
 
-**Status: milestone 4 of 6 — a service in a container.** Data pipeline, evaluation
-harness, five model families, a validated blend, and a FastAPI service that runs from
-`docker compose up` with live stock as a hard filter; numbers in [Results](#results).
-The protocol below was written before any model existed.
+**Status: milestone 5 of 6 — a dashboard at the counter.** Data pipeline, evaluation
+harness, five model families, a validated blend, a FastAPI service, and a screen a
+store owner can leave open — all from `docker compose up`, with live stock as a hard
+filter; numbers in [Results](#results). The protocol below was written before any
+model existed.
+
+![The dashboard: a Batman Pop and a Minnie wallet in the basket, in-stock suggestions with a why bar, the five models side by side](docs/dashboard.jpg)
 
 ## The data
 
@@ -99,7 +102,7 @@ Refreshing the snapshot needs a Shopify custom app with `read_orders` and
 ## Serve it
 
 ```bash
-docker compose up            # http://127.0.0.1:8150  (PORT=… to change)
+docker compose up            # http://127.0.0.1:8150 is the dashboard  (PORT=… to change)
 curl "http://127.0.0.1:8150/search?q=batman&k=3"
 curl "http://127.0.0.1:8150/recommend?variant_ids=<id>,<id>&k=10"
 curl "http://127.0.0.1:8150/similar/<id>"
@@ -118,6 +121,7 @@ on. No credentials are needed for any of this.
 | `GET /search?q=` | title search, to find ids |
 | `GET /eval` | the test results as JSON |
 | `GET /health` | model, config source, fitted-on counts, stock cache status |
+| `GET /` | the dashboard: find a Pop, build the basket, see suggestions with a why bar, the same basket through every model, and the held-out scores. State lives in the URL (`/?ids=1,2`), so it works with JavaScript off; a few lines of script add search-as-you-type |
 
 **Stock is a hard filter, and it matters more than the metrics suggest.** Drop a
 file named `shopify.env` next to `compose.yaml` with `SHOPIFY_STORE`,
@@ -289,8 +293,10 @@ is neither flattered nor punished for emitting ties.
    validated hybrid** — done.
 4. **FastAPI service, Docker image, `docker compose up` from a clean clone, live
    stock as a hard filter** — done.
-5. A dashboard a store owner would leave open: pick a product or a basket, see what
-   each model suggests, see the evaluation.
+5. **A dashboard a store owner would leave open** — done. Pop numbers are the
+   visual signature because that is how staff talk about stock; every suggestion
+   says whether it is on the shelf, whether it has ever sold here, and what the
+   suggestion rests on; the five models sit side by side for the same basket.
 6. Gate file and CI on the evaluation; publish.
 
 ## License

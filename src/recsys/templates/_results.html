@@ -1,0 +1,6 @@
+{% for h in results %}
+<li>
+  <a href="/?ids={{ ids ~ ',' if ids else '' }}{{ h.variant_id }}&in_stock={{ in_stock }}">{{ h.title }}</a>
+  <span class="n">{% if h.pop_number %}#{{ h.pop_number }} · {% endif %}${{ "%.2f"|format(h.price or 0) }}</span>
+</li>
+{% endfor %}

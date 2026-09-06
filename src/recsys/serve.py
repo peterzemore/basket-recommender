@@ -9,7 +9,9 @@ from contextlib import asynccontextmanager
 from datetime import date
 
 import numpy as np
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 
 from recsys.data import PUBLIC_DIR, ROOT, read_jsonl
 from recsys.eval.index import Index
@@ -40,7 +42,14 @@ class Recommender:
         self.model = Hybrid([(attr, w["attr"]), (content, w["content"]), (item, w["item"])],
                             label=config.get("label")).fit(orders, self.index)
         self.content = content
+        self.by_model = {"Selling now": Popularity(config["popularity"]["half_life_days"]).fit(orders, self.index),
+                         "Bought together": item, "Looks alike": content, "Goes with this kind of thing": attr,
+                         "Combined": self.model}
         self.sellable = np.array([self.products.get(v, {}).get("status") == "ACTIVE" for v in self.index.variants])
+        self.sold_in = np.zeros(self.index.n, dtype=int)
+        for o in orders:
+            for i in {i["variant_id"] for i in o["items"]}:
+                self.sold_in[self.index.idx[i]] += 1
 
     def _ctx(self, variant_ids: list[int]) -> tuple[int, ...]:
         missing = [v for v in variant_ids if v not in self.index.idx]
@@ -84,6 +93,16 @@ class Recommender:
         return {"item": self._brief(variant_id), "model": self.content.name, "stock_filter_applied": filtered,
                 "similar": rows}
 
+    def compare(self, variant_ids: list[int], k: int, stock: StockCache, in_stock_only: bool) -> dict:
+        """The same basket through every model - the side-by-side view."""
+        ctx = self._ctx(variant_ids)
+        mask = self.index.candidates(self.today, ctx)
+        out = {}
+        for label, m in self.by_model.items():
+            rows, _ = self._rows(m.scores(ctx, self.today), mask, k, stock, in_stock_only)
+            out[label] = rows
+        return out
+
     def search(self, q: str, k: int) -> list[dict]:
         ql = q.lower().strip()
         hits = [p for p in self.products.values() if ql in (p.get("title") or "").lower() and p.get("status") == "ACTIVE"]
@@ -92,7 +111,17 @@ class Recommender:
 
     def _brief(self, v: int) -> dict:
         p = self.products.get(v, {})
-        return {"variant_id": v, "title": p.get("title"), "price": p.get("price"), "image_url": p.get("image_url")}
+        i = self.index.idx.get(v)
+        return {"variant_id": v, "title": p.get("title"), "price": p.get("price"), "image_url": p.get("image_url"),
+                "pop_number": _pop_number(p.get("title") or ""), "sold_in": int(self.sold_in[i]) if i is not None else 0}
+
+
+_POP_RE = __import__("re").compile(r"#\s?(\d{1,5})")
+
+
+def _pop_number(title: str) -> str | None:
+    m = _POP_RE.search(title)
+    return m.group(1) if m else None
 
 
 def load_config() -> tuple[dict, str]:
@@ -157,3 +186,60 @@ def eval_results():
     if not path.exists():
         raise HTTPException(404, "no results/test.json - run `recsys evaluate`")
     return json.loads(path.read_text())
+
+
+templates = Jinja2Templates(directory=str(__import__("pathlib").Path(__file__).parent / "templates"))
+WHY_LABELS = {"attr": "goes with this kind of thing", "content": "looks alike", "item": "bought together"}
+
+
+def _why_rows(rec: dict) -> dict:
+    """Collapse component names to the three labels a person at the counter reads."""
+    out = {}
+    for name, v in (rec.get("why") or {}).items():
+        key = "attr" if name.startswith("attr") else "content" if name.startswith("content") else "item"
+        out[key] = out.get(key, 0.0) + v
+    return out
+
+
+def _eval_rows() -> list[dict]:
+    path = ROOT / "results" / "test.json"
+    if not path.exists():
+        return []
+    t = json.loads(path.read_text())
+    rows = []
+    for name, s_ in t["summaries"].items():
+        seg = s_["segments"]["target"]
+        rows.append({"name": name, "hit10": s_["hit10"], "warm": seg.get("warm", {}).get("hit10"),
+                     "cold": seg.get("cold", {}).get("hit10"), "n": s_["n_queries"], "cold_share": s_["cold_share"],
+                     "baseline": name == t["baseline"], "served": name == t.get("chosen_on_validation", {}).get("hybrid")})
+    return rows
+
+
+@app.get("/", response_class=HTMLResponse)
+def dashboard(request: Request, ids: str = "", q: str = "", in_stock: int = 1, k: int = 8):
+    r: Recommender = app.state.rec
+    stock: StockCache = app.state.stock
+    try:
+        basket = [int(x) for x in ids.split(",") if x.strip()]
+    except ValueError:
+        basket = []
+    basket = [v for v in basket if v in r.index.idx]
+    ctx = {"request": request, "ids": ",".join(map(str, basket)), "in_stock": in_stock, "q": q,
+           "basket": [r._brief(v) for v in basket], "stock": stock.status(), "health": None,
+           "suggest": None, "compare": None, "results": q and r.search(q, 8) or [],
+           "eval": _eval_rows(), "why_labels": WHY_LABELS}
+    if basket:
+        rec = r.recommend(basket, k, stock, bool(in_stock))
+        for row in rec["recommendations"]:
+            row["why_rows"] = _why_rows(row)
+            row["pop_number"] = _pop_number(row["title"] or "")
+            row["sold_in"] = int(r.sold_in[r.index.idx[row["variant_id"]]])
+        ctx["suggest"] = rec
+        ctx["compare"] = r.compare(basket, 5, stock, bool(in_stock))
+    return templates.TemplateResponse(request, "index.html", ctx)
+
+
+@app.get("/ui/search", response_class=HTMLResponse)
+def ui_search(request: Request, q: str = "", ids: str = "", in_stock: int = 1):
+    hits = app.state.rec.search(q, 8) if len(q.strip()) >= 2 else []
+    return templates.TemplateResponse(request, "_results.html", {"request": request, "results": hits, "ids": ids, "in_stock": in_stock})

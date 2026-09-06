@@ -51,6 +51,12 @@ class StockCache:
             return None
         return self.quantities.get(variant_id, 0) > 0
 
+    def age(self) -> str | None:
+        if not self.updated_at:
+            return None
+        secs = (datetime.now(timezone.utc) - datetime.fromisoformat(self.updated_at)).total_seconds()
+        return "just now" if secs < 90 else f"{int(secs // 60)} min ago" if secs < 5400 else f"{secs / 3600:.0f} h ago"
+
     def status(self) -> dict:
         return {"enabled": self.enabled, "variants_known": len(self.quantities),
-                "updated_at": self.updated_at, "error": self.error}
+                "updated_at": self.updated_at, "age": self.age(), "error": self.error}
