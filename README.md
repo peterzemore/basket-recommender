@@ -8,10 +8,9 @@ actual order history, anonymized and committed to this repo, so the whole evalua
 runs from a clean clone with no credentials. Every number in this README is computed
 from that snapshot by `recsys report`.
 
-**Status: milestone 2 of 6 — the evaluation harness and two baselines.** The data
-pipeline, the split, the candidate rules, the metrics, and the bootstrap all exist and
-are tested; the models so far are popularity and co-purchase counts, and the numbers
-are in [Results](#results). The protocol below was written before any of them.
+**Status: milestone 3 of 6 — content models and a hybrid.** Data pipeline, evaluation
+harness, five model families, and a validated blend; numbers in [Results](#results).
+The protocol below was written before any model existed.
 
 ## The data
 
@@ -122,10 +121,27 @@ Expected honestly: on roughly five hundred test baskets over a three-thousand-it
 long tail, absolute Hit@10 will be modest. The result of interest is lift over the
 production baseline and behavior on cold items.
 
+## Models
+
+| Family | What it uses | Why it is here |
+|---|---|---|
+| `popularity` | units sold, optionally decayed | the floor |
+| `copurchase` | raw pair counts, `min_support` | the store's production analysis, ported as-is |
+| `itemitem` | pair counts as cosine or lift, with shrinkage | the same evidence, without a pair seen once looking like a law |
+| `content_cosine` | idf-weighted tags, title keywords (exclusive / chase / vault / glow …), price band; no basket data | "looks like what is in the basket" — scores an item that has never sold |
+| `attr_cooccurrence` | positive PMI between attributes of items that share a basket | the learned version: which *kinds* of things go together, applied to new items |
+| `hybrid` | a weighted blend of the family winners, weights chosen on validation | content carries the ranking, item evidence adds where it exists |
+
+The purchasing model behind this choice: the store buys new releases in small
+quantities, mostly six to twelve pieces. A variant's whole life is a handful of
+baskets, so more history adds more *different* items rather than more evidence per
+item. What persists across that turnover is the attribute — franchise, product line,
+price band, rarity — which is why the content path is the primary ranker rather than
+a fallback.
+
 ## Results
 
-Milestone 2 adds the evaluation harness and the two baselines. Everything below is
-written by `recsys evaluate` and regenerated from `data/public/` with a fixed seed;
+Everything below is written by `recsys evaluate` and regenerated from `data/public/` with a fixed seed;
 per-query records are in [`results/test_queries.jsonl`](results/test_queries.jsonl).
 
 Hyperparameters were chosen on the validation window only. Test was scored once,
@@ -134,29 +150,30 @@ setting of the co-purchase baseline (`min_support=3`) is always reported as-is,
 whatever validation preferred.
 
 <!-- results:start -->
-**Chosen on validation** (fit on train, scored on Apr–May 2026):
+**Chosen on validation** (fit on train, scored on Apr–May 2026; family winners and the best blend):
 
 | Model (fit on train, scored on validation) | Hit@10 [95% CI] | NDCG@10 | Answered | queries (cold targets) |
 |---|---|---|---|---:|
-| `popularity` | 1.8% [0.7%, 3.1%] | 1.2% | 100.0% | 398 (40.5%) |
 | `popularity(hl=30d)` | 3.8% [1.7%, 6.0%] | 1.7% | 100.0% | 398 (40.5%) |
-| `popularity(hl=90d)` | 2.0% [0.7%, 3.5%] | 1.3% | 100.0% | 398 (40.5%) |
-| `popularity(hl=180d)` | 2.0% [0.7%, 3.5%] | 1.3% | 100.0% | 398 (40.5%) |
 | `copurchase(min_support=1)` | 10.3% [6.6%, 14.6%] | 6.1% | 79.9% | 398 (40.5%) |
-| `copurchase(min_support=1)+pop` | 9.5% [6.1%, 13.6%] | 6.8% | 100.0% | 398 (40.5%) |
-| `copurchase(min_support=2)` | 5.3% [2.5%, 8.6%] | 4.2% | 25.4% | 398 (40.5%) |
-| `copurchase(min_support=2)+pop` | 6.8% [3.8%, 10.1%] | 5.7% | 100.0% | 398 (40.5%) |
-| `copurchase(min_support=3)` | 1.3% [0.0%, 3.3%] | 0.9% | 3.0% | 398 (40.5%) |
-| `copurchase(min_support=3)+pop` | 2.8% [1.0%, 5.1%] | 2.1% | 100.0% | 398 (40.5%) |
+| `itemitem(cosine, shrink=5)` | 10.3% [6.6%, 14.7%] | 6.6% | 79.9% | 398 (40.5%) |
+| `content_cosine` | 10.1% [5.9%, 14.7%] | 5.4% | 100.0% | 398 (40.5%) |
+| `attr_cooccurrence(min_count=5)` | 8.3% [4.5%, 12.6%] | 3.8% | 100.0% | 398 (40.5%) |
+| `hybrid(attr=1, content=1, item=0.5)` | 19.8% [14.7%, 25.5%] | 13.3% | 100.0% | 398 (40.5%) |
+
+All 43 validation rows, including the hybrid grid, are in [`results/val_sweep.md`](results/val_sweep.md).
 
 **Test** (fit on train+validation, scored once on Jun 2026 onward):
 
 | Model | Hit@5 | Hit@10 [95% CI] | NDCG@10 | MRR | Answered | Coverage@10 | Novelty@10 |
 |---|---|---|---|---|---|---|---|
-| `popularity` | 1.8% | 2.0% [0.9%, 3.1%] | 1.4% | 0.013 | 100.0% | 0.1% | 9.27 bits |
 | `popularity(hl=30d)` | 2.3% | 2.5% [1.4%, 3.7%] | 1.5% | 0.014 | 100.0% | 0.1% | 10.22 bits |
 | `copurchase(min_support=3)` | 0.3% | 0.3% [0.0%, 1.1%] | 0.3% | 0.004 | 7.1% | 0.2% | 13.41 bits |
 | `copurchase(min_support=1)` | 3.8% | 5.3% [3.0%, 7.9%] | 3.7% | 0.034 | 81.0% | 10.7% | 12.37 bits |
+| `itemitem(cosine, shrink=5)` | 4.1% | 6.4% [3.7%, 9.6%] | 4.4% | 0.039 | 81.0% | 11.6% | 12.60 bits |
+| `content_cosine` | 4.8% | 7.8% [4.6%, 11.8%] | 4.5% | 0.046 | 100.0% | 17.6% | 13.11 bits |
+| `attr_cooccurrence(min_count=5)` | 2.0% | 3.5% [1.3%, 6.1%] | 2.3% | 0.026 | 100.0% | 12.8% | 13.01 bits |
+| `hybrid(attr=1, content=1, item=0.5)` | 7.8% | 11.9% [8.3%, 15.7%] | 7.6% | 0.072 | 100.0% | 18.5% | 12.27 bits |
 
 606 leave-one-out queries over 163 test baskets; 45.4% of targets are cold (never sold in the fitting window). Intervals are cluster bootstraps over baskets. *Answered* is the share of queries where the model gave any candidate a positive score; coverage and novelty are only meaningful when it is high.
 
@@ -164,19 +181,25 @@ whatever validation preferred.
 
 | Model | ΔHit@10 [95% CI] | ΔNDCG@10 [95% CI] | Distinguishable from baseline? |
 |---|---|---|---|
-| `popularity` | +1.7 pts [+0.3, +3.0] | +1.0 pts [-0.1, +2.1] | yes |
 | `popularity(hl=30d)` | +2.1 pts [+1.0, +3.5] | +1.2 pts [+0.2, +2.1] | yes |
 | `copurchase(min_support=1)` | +5.0 pts [+2.7, +7.5] | +3.4 pts [+1.6, +5.3] | yes |
+| `itemitem(cosine, shrink=5)` | +6.1 pts [+3.4, +9.1] | +4.0 pts [+2.1, +6.3] | yes |
+| `content_cosine` | +7.4 pts [+4.2, +11.4] | +4.2 pts [+1.8, +7.0] | yes |
+| `attr_cooccurrence(min_count=5)` | +3.1 pts [+1.1, +5.6] | +1.9 pts [+0.2, +4.1] | yes |
+| `hybrid(attr=1, content=1, item=0.5)` | +11.6 pts [+8.0, +15.4] | +7.3 pts [+4.8, +10.3] | yes |
 
 | Hit@10 by segment | target: warm (n=331) | target: cold (n=275) | source: pos (n=544) | source: online (n=62) | context: 1 item (n=138) | context: 2+ items (n=468) |
 |---|---|---|---|---|---|---|
-| `popularity` | 3.6% | 0.0% | 2.2% | 0.0% | 1.4% | 2.1% |
 | `popularity(hl=30d)` | 4.5% | 0.0% | 2.4% | 3.2% | 5.8% | 1.5% |
 | `copurchase(min_support=3)` | 0.6% | 0.0% | 0.4% | 0.0% | 0.0% | 0.4% |
 | `copurchase(min_support=1)` | 9.7% | 0.0% | 3.7% | 19.4% | 2.9% | 6.0% |
+| `itemitem(cosine, shrink=5)` | 11.8% | 0.0% | 4.6% | 22.6% | 2.9% | 7.5% |
+| `content_cosine` | 5.1% | 10.9% | 7.5% | 9.7% | 11.6% | 6.6% |
+| `attr_cooccurrence(min_count=5)` | 4.8% | 1.8% | 3.3% | 4.8% | 2.9% | 3.6% |
+| `hybrid(attr=1, content=1, item=0.5)` | 16.0% | 6.9% | 10.5% | 24.2% | 10.9% | 12.2% |
 <!-- results:end -->
 
-### What the baselines say
+### What the models say
 
 - **The production analysis is not a recommender.** With `min_support=3` it has
   something to say on 7% of queries and lands the hidden item in its top ten 0.3%
@@ -187,15 +210,33 @@ whatever validation preferred.
   with `min_support=1` reach 5.3% Hit@10 [3.0%, 7.9%] on test, distinguishable from
   the baseline, and 19% on online orders (n=62, so a wide interval). On this
   little data, every pair is evidence.
-- **Every model scores exactly 0.0% on cold targets, and cold targets are 45% of
-  test queries.** An item that never sold in the fitting window cannot be ranked by
-  its id, so it sits in the middle of a tie block thousands wide. Nearly half of
-  what the store sells is invisible to everything in this table. That number is
-  the case for milestone 3, and it was measured rather than assumed.
-- **Validation flattered co-purchase.** It scored 10.3% on Apr–May and 5.3% on
-  Jun onward. Cold targets are 40% of validation queries and 45% of test queries,
-  and the test window's warm baskets are further from the fitting data. The gap
-  is reported rather than tuned away.
+- **Every id-based model scores exactly 0.0% on cold targets, and cold targets are
+  45% of test queries.** An item that never sold in the fitting window cannot be
+  ranked by its id, so it sits in the middle of a tie block thousands wide. Nearly
+  half of what the store sells is invisible to those rows.
+- **Content is what reaches them.** `content_cosine` — no basket data at all, just
+  "resembles what is in the basket" — takes the cold segment from 0.0% to 10.9% and
+  is the best single model overall at 7.8% [4.6%, 11.8%].
+- **The hybrid more than doubles the best baseline:** 11.9% Hit@10 [8.3%, 15.7%]
+  against 5.3%, +11.6 points over the production setting, 16.0% on warm targets and
+  6.9% on cold. Validation chose weights that favour the warm segment (attr 1,
+  content 1, item 0.5), which is why its cold number trails pure content; a blend
+  tuned for cold would look different, and that choice is a product decision, not
+  something to settle by re-running the sweep until it looks better.
+- **The learned attribute model lost to the unlearned one.** `attr_cooccurrence`
+  (3.5%) is beaten by plain `content_cosine` (7.8%). On 1,400 baskets, PMI between
+  hundreds of attributes is mostly noise around the one signal that matters —
+  "same franchise, same price band" — and cosine on the item's own features
+  captures that directly. It still earns a weight of 1 in the blend, so it is
+  adding something the others lack, but it is not the model the design predicted.
+- **Validation ran hot again.** The hybrid scored 19.8% [14.7%, 25.5%] on Apr–May and 11.9% on test;
+  content cosine 10.1% and 7.8%. Reported, not tuned away.
+
+**What the evaluation cannot see.** It knows when a variant existed but not whether
+it was in stock. Sell-through here ranges from a week to never, so a model can be
+scored wrong for recommending something that had sold out that morning, and there
+is no stock history to correct for it. At serving time this is a hard filter against
+live inventory, not a model feature.
 
 How to read the ties: a popularity model gives thousands of long-tail variants the
 same score. The rank used is the *expected* rank under random tie-breaking — one
@@ -206,8 +247,8 @@ is neither flattered nor punished for emitting ties.
 
 1. **Data pipeline** — done.
 2. **Evaluation harness with leakage tests; popularity and co-purchase baselines** — done.
-3. Item-item association, tag/price content similarity, and a hybrid with content
-   backoff for cold items; ablation table.
+3. **Item-item association, content similarity, attribute co-occurrence, and a
+   validated hybrid** — done.
 4. FastAPI service, Docker image, `docker compose up` from a clean clone.
 5. A dashboard a store owner would leave open: pick a product or a basket, see what
    each model suggests, see the evaluation.
