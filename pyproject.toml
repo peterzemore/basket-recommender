@@ -9,7 +9,7 @@ description = "Item-to-item basket completion on a real retail store's orders, w
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
-dependencies = []
+dependencies = ["numpy>=1.26"]
 
 [project.optional-dependencies]
 pull = ["requests>=2.31"]
