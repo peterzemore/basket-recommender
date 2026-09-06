@@ -1,0 +1,13 @@
+{
+  "dropped_cancelled_order": 76,
+  "dropped_excluded_email_order": 4,
+  "dropped_line_fully_refunded": 71,
+  "dropped_line_no_variant": 632,
+  "dropped_order_no_lines_left": 225,
+  "lines_in": 6989,
+  "lines_merged_duplicate_variant": 27,
+  "lines_out": 6259,
+  "lines_partially_refunded": 13,
+  "orders_in": 2958,
+  "orders_out": 2653
+}
