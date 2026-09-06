@@ -1,0 +1,18 @@
+# Regression gates over results/test.json. CI re-runs the evaluation and applies these
+# to the fresh numbers; a violation fails the build.
+#
+# Thresholds sit just under what the served model scores today, never above it. A gate
+# is there to catch a regression, not to state an ambition - raise a threshold only after
+# the model has already cleared it.
+
+[served]                                   # the model results/serving_config.json points at
+min_hit10 = 0.10                           # scores 0.119
+min_lift_hit10_over_baseline = 0.09        # +0.116 over copurchase(min_support=3), in points
+min_cold_hit10 = 0.05                      # 0.069 on targets that never sold in the fitting window
+min_coverage10 = 0.15                      # 0.185 of the catalog appears in some top ten
+min_answered = 0.99                        # scores every query
+
+[protocol]                                 # changing the split is a deliberate edit, not a side effect
+train_end = "2026-03-31"
+val_end = "2026-05-31"
+min_test_queries = 500

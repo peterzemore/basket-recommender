@@ -10,6 +10,19 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: pytest -q
       - run: recsys report
+  evaluate-and-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -e ".[dev]"
+      - name: keep the committed results to compare against
+        run: cp results/test.json /tmp/committed.json
+      - name: re-run the whole evaluation from the public snapshot
+        run: recsys evaluate --bootstrap 300 --seed 0 > /dev/null
+      - name: gates, and fresh point estimates must equal the committed ones
+        run: recsys gate --committed /tmp/committed.json
   docker:
     runs-on: ubuntu-latest
     steps:
@@ -24,4 +37,5 @@ jobs:
           done
           docker compose logs; exit 1
       - run: curl -sf "http://127.0.0.1:8150/search?q=batman" | head -c 400; echo
+      - run: curl -sf "http://127.0.0.1:8150/" | grep -q "In the basket"
       - run: docker compose down

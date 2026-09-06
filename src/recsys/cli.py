@@ -172,6 +172,22 @@ def cmd_evaluate(args) -> int:
     return 0
 
 
+def cmd_gate(args) -> int:
+    from recsys.eval.gate import drift, load_gates, load_results, run_gates
+    results = load_results(Path(args.results))
+    checks = run_gates(results, load_gates(Path(args.gates)))
+    if args.committed:
+        checks += drift(results, load_results(Path(args.committed)))
+    width = max(len(c["check"]) for c in checks)
+    for c in checks:
+        v = f"{c['value']:.4f}" if isinstance(c["value"], float) else str(c["value"])
+        m = f"{c['min']:.4f}" if isinstance(c["min"], float) else str(c["min"])
+        print(f"{'ok  ' if c['ok'] else 'FAIL'}  {c['check']:<{width}}  {v:>10}  (min {m})")
+    failed = [c for c in checks if not c["ok"]]
+    print(f"\n{len(checks) - len(failed)} of {len(checks)} gates passed" + (f"; {len(failed)} FAILED" if failed else ""))
+    return 1 if failed else 0
+
+
 def _ctor_args(m) -> dict:
     """Enough to rebuild a model with the same settings on a different fitting set."""
     from recsys.models import AttributeCooccurrence, ContentCosine, CoPurchase, ItemItem, Popularity
@@ -210,6 +226,12 @@ def build_parser() -> argparse.ArgumentParser:
     ev.add_argument("--seed", type=int, default=0)
     ev.add_argument("--update-readme", action="store_true")
     ev.set_defaults(func=cmd_evaluate)
+
+    gt = sub.add_parser("gate", help="apply gates.toml to a results file; exit 1 on any violation")
+    gt.add_argument("--results", default=str(ROOT / "results" / "test.json"))
+    gt.add_argument("--gates", default=str(ROOT / "gates.toml"))
+    gt.add_argument("--committed", help="a committed results file; fresh point estimates must match it exactly")
+    gt.set_defaults(func=cmd_gate)
 
     sv = sub.add_parser("serve", help="run the API (fits the validated configuration on the full snapshot at startup)")
     sv.add_argument("--host", default="127.0.0.1")

@@ -8,11 +8,11 @@ actual order history, anonymized and committed to this repo, so the whole evalua
 runs from a clean clone with no credentials. Every number in this README is computed
 from that snapshot by `recsys report`.
 
-**Status: milestone 5 of 6 — a dashboard at the counter.** Data pipeline, evaluation
-harness, five model families, a validated blend, a FastAPI service, and a screen a
-store owner can leave open — all from `docker compose up`, with live stock as a hard
-filter; numbers in [Results](#results). The protocol below was written before any
-model existed.
+**Status: complete.** Data pipeline, evaluation harness, five model families, a
+validated blend, a FastAPI service, a screen a store owner can leave open — all from
+`docker compose up`, with live stock as a hard filter — and a regression gate that
+CI applies to a fresh run of the evaluation on every push; numbers in
+[Results](#results). The protocol below was written before any model existed.
 
 ![The dashboard: a Batman Pop and a Minnie wallet in the basket, in-stock suggestions with a why bar, the five models side by side](docs/dashboard.jpg)
 
@@ -136,6 +136,27 @@ for a Batman Pop, **all five of the unfiltered top recommendations were sold out
 The evaluation cannot see this, which is why it is a serving rule rather than a
 feature, and why the ranked list a customer sees is not the one the test table
 scores.
+
+## The gate
+
+[`gates.toml`](gates.toml) holds thresholds for the served model — Hit@10, lift
+over the production baseline, cold-target Hit@10, coverage, the share of queries
+answered — plus the split dates and a minimum test size. Every threshold sits just
+under what the model scores today, never above it: a gate catches a regression, it
+does not state an ambition.
+
+```bash
+recsys gate                              # apply gates.toml to results/test.json
+recsys gate --committed /tmp/before.json # …and require fresh point estimates to match
+```
+
+CI does not trust the committed results file. On every push it re-runs the whole
+evaluation from the public snapshot, applies the gates to the fresh numbers, and
+requires the fresh point estimates to equal the committed ones to nine decimals. The
+run is seeded and the means do not depend on the bootstrap, so a mismatch means a
+code change moved a number that the README still quotes. Changing the split dates
+fails the protocol gate on purpose — that is an edit to make deliberately, in the
+gate file and the README together.
 
 ## The evaluation protocol, stated in advance
 
@@ -297,7 +318,8 @@ is neither flattered nor punished for emitting ties.
    visual signature because that is how staff talk about stock; every suggestion
    says whether it is on the shelf, whether it has ever sold here, and what the
    suggestion rests on; the five models sit side by side for the same basket.
-6. Gate file and CI on the evaluation; publish.
+6. **Gate file, CI that re-runs the evaluation and checks it against the committed
+   numbers** — done.
 
 ## License
 
