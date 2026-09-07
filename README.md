@@ -1,5 +1,7 @@
 # basket-recommender
 
+> **Write-up:** [Half of what the store sells has never sold before: why content beat every id-based model.](docs/writeup.md)
+
 Item-to-item basket completion for a real retail store, with an offline evaluation
 that is held to a protocol stated before any model was written.
 
