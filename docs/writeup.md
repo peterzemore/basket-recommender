@@ -1,6 +1,4 @@
 # Half of what my store sells has never sold before
-*Draft for a pinned GitHub Discussion on peterzemore/basket-recommender. About 900 words.*
-
 I own a small Funko Pop store. When a new release comes in, I buy six to twelve pieces,
 they sell, and the next release replaces them. That purchasing model has a consequence I
 did not appreciate until I tried to build a recommender on my own order history: 61% of
