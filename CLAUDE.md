@@ -62,3 +62,11 @@ that keeps `variant.available` items and adds via `/cart/add` with a
 `_suggested_by` line-item property so Ada can count attach rate. Check whether
 Shopify's native "complementary products" metafield is API-writable before inventing a
 custom one. A Shopify *app* only makes sense if this is ever sold to other stores.
+
+## Shared with sell-through (2026-09-07)
+
+`~/Projects/personal/sell-through` reads this repo's `data/raw/{products,orders}.jsonl` and the
+local `shopify.env` (Ada's read-only app) for its cohort, live stock, and cost pulls. Do not move,
+rename, or re-anonymize those without re-running sell-through's `build`. The public write-up for
+this repo is `docs/writeup.md`, linked from the README; keep its numbers in step with the
+results table.
